@@ -1,0 +1,138 @@
+
+---
+ apiVersion: apps/v1
+ kind: Deployment
+ metadata:
+   namespace: adguard 
+   name: adguard-deployment
+   labels:
+     app: adguard
+ spec:
+   replicas: 1
+   selector:
+      matchLabels:
+        app: adguard
+   template:
+     metadata:
+       labels:
+         app: adguard 
+     spec:
+      containers:
+         - name: adguard
+           image: adguard/adguardhome
+           imagePullPolicy: Always
+           resources:
+             limits:
+           livenessProbe:
+             tcpSocket:
+               port: 80
+             initialDelaySeconds: 15
+             periodSeconds: 20
+           ports:
+             - containerPort: 53
+             - containerPort: 80
+             - containerPort: 443
+             - containerPort: 3000             
+             - containerPort: 853
+             - containerPort: 784
+             - containerPort: 8853
+             - containerPort: 5443
+           env:
+              - name: TZ
+                value: "Europe/Stockholm"
+           volumeMounts:
+             - mountPath: /opt/adguardhome/conf
+               name: adguard-config
+             - mountPath: /opt/adguardhome/work
+               name: adguard-work
+             - mountPath: /cert
+               name: adguard-cert
+           volumeMounts:
+             - mountPath: /opt/adguardhome/conf
+               name: adguard-config
+             - mountPath: /opt/adguardhome/work
+               name: adguard-work
+             - mountPath: /cert
+               name: adguard-cert
+      volumes:
+        - name: adguard-config
+          hostPath:
+            path: /media/download/kubeconfig/adguard/config/
+        - name: adguard-work
+          persistentVolumeClaim:
+            claimName: adguard-pvc
+        - name: adguard-cert
+          hostPath:
+            path: /media/download/kubernetes-stacks/cert-creation/certificates/adguard.dadgar.se/
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: adguard
+  name: adguard
+  annotations:
+    metallb.universe.tf/allow-shared-ip: adguard-svc
+spec:
+  externalTrafficPolicy: Local
+  type: LoadBalancer
+  loadBalancerIP: 192.168.2.2  
+  ports:
+  - name: dns
+    port: 53
+    targetPort: 53
+  - name: http
+    port: 80
+    targetPort: 80
+  - name: https
+    port: 443
+    targetPort: 443
+  - name: tcp-3000
+    port: 3000
+    targetPort: 3000
+  - name: tcp-853
+    port: 853
+    targetPort: 853
+  - name: tcp-5443
+    port: 5443
+    targetPort: 5443               
+  selector:
+    app: adguard
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: adguard
+  name: adguard-udp
+  annotations:
+    metallb.universe.tf/allow-shared-ip: adguard-svc
+spec:
+  externalTrafficPolicy: Local
+  type: LoadBalancer
+  loadBalancerIP: 192.168.2.2    
+  ports:
+  - name: 53-udp
+    port: 53
+    protocol: UDP
+    targetPort: 53
+  - name: 443-udp
+    port: 443
+    protocol: UDP
+    targetPort: 443    
+  - name: 784-udp
+    port: 784
+    protocol: UDP
+    targetPort: 784
+  - name: 853-udp
+    port: 853
+    protocol: UDP
+    targetPort: 853
+  - name: 8853-udp
+    port: 8853
+    protocol: UDP
+    targetPort: 8853
+  - name: 5443-udp
+    port: 5443
+    protocol: UDP
+    targetPort: 5543               
+  selector:
+    app: adguard
